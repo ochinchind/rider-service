@@ -13,9 +13,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	config2 "taxiservice/rider/internal/config"
+	"taxiservice/rider/internal/config"
 	"taxiservice/rider/internal/db/repository"
-	driver_order "taxiservice/rider/internal/generated/proto/driver.order"
+	"taxiservice/rider/internal/generated/proto/driver.order"
 	rider "taxiservice/rider/internal/generated/schema"
 	"taxiservice/rider/internal/handlers"
 	"taxiservice/rider/internal/logger"
@@ -28,7 +28,7 @@ import (
 
 func main() {
 	log := logger.New()
-	cfg, err := config2.FromEnv()
+	cfg, err := config.FromEnv()
 
 	if err != nil {
 		log.WithError(err, "get cfg")
@@ -72,7 +72,7 @@ func main() {
 
 	r.Use(middleware.OapiRequestValidator(swagger))
 	r.Use(chimiddleware.Recoverer)
-	if cfg.Env == config2.LocalEnv {
+	if cfg.Env == config.LocalEnv {
 		r.Use(chimiddleware.Recoverer)
 	}
 

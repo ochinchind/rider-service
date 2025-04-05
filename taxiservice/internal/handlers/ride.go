@@ -14,7 +14,7 @@ type RideImpl struct {
 	now          now_time.NowType
 }
 
-var _ rider.ServerInterface = (*RideImpl)(nil)
+var _ rider.rider = (*RideImpl)(nil)
 
 func New(log logger.Log, now now_time.NowType, orderService OrderService) *RideImpl {
 	return &RideImpl{

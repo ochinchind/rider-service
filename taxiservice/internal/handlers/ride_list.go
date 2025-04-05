@@ -6,7 +6,7 @@ import (
 	"taxiservice/rider/internal/generated/schema"
 )
 
-func (h *RideImpl) GetOrders(w http.ResponseWriter, r *http.Request, params rider.GetOrdersParams) {
+func (h *RideImpl) GetOrders(w http.ResponseWriter, r *http.Request, params rider.rider) {
 	if params.XUserId <= 0 {
 		writeAuthError(w)
 		return
@@ -21,7 +21,7 @@ func (h *RideImpl) GetOrders(w http.ResponseWriter, r *http.Request, params ride
 	resultOrders := make([]rider.Order, 0, len(orders))
 	for _, order := range orders {
 		resultOrders = append(resultOrders, rider.Order{
-			CreatedAt: order.CreatedAt,
+			CreatedAt: order.CreatedAt.String(),
 			DropoffLocation: rider.Location{
 				Latitude:  order.DropoffLocation.Latitude,
 				Longitude: order.DropoffLocation.Longitude,
@@ -30,7 +30,7 @@ func (h *RideImpl) GetOrders(w http.ResponseWriter, r *http.Request, params ride
 				Latitude:  order.PickupLocation.Latitude,
 				Longitude: order.PickupLocation.Longitude,
 			},
-			Id:         order.Id,
+			Id:         order.ID,
 			TotalPrice: order.TotalPrice,
 		})
 	}

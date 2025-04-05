@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	rider "taxiservice/rider/internal/generated/schema"
+	"taxiservice/rider/internal/generated/schema"
 	"taxiservice/rider/internal/services/order"
 )
 

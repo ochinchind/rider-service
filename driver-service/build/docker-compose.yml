@@ -1,0 +1,36 @@
+version: "3.9"
+
+networks:
+  driver:
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "postgres"
+    volumes:
+      - driver-service-pg-volume:/var/lib/postgresql/data
+    networks:
+      - driver
+    container_name: driver-service-postgres
+
+  pgbouncer:
+    image: bitnami/pgbouncer:1.21.0
+    environment:
+      POSTGRESQL_HOST: "postgres"
+      POSTGRESQL_PORT: "5432"
+      POSTGRESQL_USERNAME: "postgres"
+      POSTGRESQL_PASSWORD: "postgres"
+      POSTGRESQL_DATABASE: "postgres"
+      PGBOUNCER_PORT: "6432"
+      PGBOUNCER_IGNORE_STARTUP_PARAMETERS: "extra_float_digits"
+    ports:
+      - "6432:6432"
+    networks:
+      - driver
+    container_name: driver-service-pgbouncer
+
+volumes:
+  driver-service-pg-volume:
