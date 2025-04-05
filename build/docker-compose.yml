@@ -1,5 +1,8 @@
 version: "3.9"
 
+networks:
+  rider:
+
 services:
   postgres:
     image: postgres:15
@@ -9,6 +12,8 @@ services:
       POSTGRES_DB: "postgres"
     volumes:
       - rider-service-pg-volume:/var/lib/postgresql/data
+    networks:
+      - rider
     container_name: rider-service-postgres
 
   pgbouncer:
@@ -23,6 +28,8 @@ services:
       PGBOUNCER_IGNORE_STARTUP_PARAMETERS: "extra_float_digits"
     ports:
       - "6432:6432"
+    networks:
+      - rider
     container_name: rider-service-pgbouncer
 
 volumes:

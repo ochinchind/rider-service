@@ -2,10 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/google/uuid"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 	"net/http"
 	rider "taxiservice/rider/internal/generated/schema"
+	"taxiservice/rider/internal/services/order"
 )
 
 func (h *RideImpl) PostOrders(w http.ResponseWriter, r *http.Request, params rider.PostOrdersParams) {
@@ -20,21 +19,38 @@ func (h *RideImpl) PostOrders(w http.ResponseWriter, r *http.Request, params rid
 		return
 	}
 
-	order := rider.Order{
-		CompletedAt: nil,
-		CreatedAt:   openapi_types.Date{h.now()},
-		PickupLocation: rider.Location{
+	createdOrder, err := h.orderService.Create(r.Context(), order.OrderCreate{
+		PickupLocation: order.Location{
 			Latitude:  orderData.PickupLocation.Latitude,
 			Longitude: orderData.PickupLocation.Longitude,
 		},
-		Id: uuid.New().String(),
-		DropoffLocation: rider.Location{
+		DropoffLocation: order.Location{
 			Latitude:  orderData.DropoffLocation.Latitude,
 			Longitude: orderData.DropoffLocation.Longitude,
 		},
-		TotalPrice: 0,
+		UserID:         params.XUserId,
+		IdempotencyKey: orderData.IdempotencyKey,
+	})
+
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
 	}
 
-	h.log.Info("Created order", "id", order.Id)
-	_ = json.NewEncoder(w).Encode(order)
+	responseOrder := rider.Order{
+		CreatedAt: createdOrder.CreatedAt.String(),
+		DropoffLocation: rider.Location{
+			Latitude:  createdOrder.DropoffLocation.Latitude,
+			Longitude: createdOrder.DropoffLocation.Longitude,
+		},
+		PickupLocation: rider.Location{
+			Latitude:  createdOrder.PickupLocation.Latitude,
+			Longitude: createdOrder.PickupLocation.Longitude,
+		},
+		Id:         createdOrder.ID,
+		TotalPrice: createdOrder.TotalPrice,
+	}
+
+	h.log.Info("Created order", "id", responseOrder.Id)
+	_ = json.NewEncoder(w).Encode(responseOrder)
 }

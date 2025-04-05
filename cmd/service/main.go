@@ -5,29 +5,63 @@ import (
 	"errors"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 	middleware "github.com/oapi-codegen/nethttp-middleware"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"taxiservice/rider/internal/config"
+	config2 "taxiservice/rider/internal/config"
+	"taxiservice/rider/internal/db/repository"
+	driver_order "taxiservice/rider/internal/generated/proto/driver.order"
 	rider "taxiservice/rider/internal/generated/schema"
 	"taxiservice/rider/internal/handlers"
 	"taxiservice/rider/internal/logger"
 	"taxiservice/rider/internal/now_time"
+	"taxiservice/rider/internal/services/driver_sender"
+	"taxiservice/rider/internal/services/order"
+	"taxiservice/rider/internal/services/price_estimator"
 	"time"
 )
 
 func main() {
 	log := logger.New()
-	cfg, err := config.FromEnv()
+	cfg, err := config2.FromEnv()
 
 	if err != nil {
 		log.WithError(err, "get cfg")
 		os.Exit(1)
 	}
 
-	handle := handlers.New(log, now_time.Get)
+	ctx := context.Background()
+	conn, err := pgxpool.New(ctx, cfg.DatabaseUrl)
+	if err != nil {
+		log.WithError(err, "connect to db")
+		os.Exit(1)
+	}
+	defer conn.Close()
+
+	grpcConn, err := grpc.DialContext(
+		context.Background(),
+		cfg.DriverServiceLocation,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+
+	if err != nil {
+		log.WithError(err, "grpc connect")
+		os.Exit(1)
+	}
+
+	grpcClient := driver_order.NewOrderClient(grpcConn)
+	driverSenderService := driver_sender.NewDriverSenderService(grpcClient)
+
+	priceEstimator := price_estimator.NewPriceEstimatorService()
+	orderRepository := repository.NewOrderRepository(conn)
+	orderService := order.NewOrderService(orderRepository, priceEstimator, now_time.Get, driverSenderService)
+
+	handle := handlers.New(log, now_time.Get, orderService)
 
 	r := chi.NewRouter()
 	swagger, err := rider.GetSwagger()
@@ -38,7 +72,7 @@ func main() {
 
 	r.Use(middleware.OapiRequestValidator(swagger))
 	r.Use(chimiddleware.Recoverer)
-	if cfg.Env == config.LocalEnv {
+	if cfg.Env == config2.LocalEnv {
 		r.Use(chimiddleware.Recoverer)
 	}
 
