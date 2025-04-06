@@ -10,6 +10,7 @@ import (
 	"driver-service/driver-service/services/driver_search"
 	"driver-service/driver-service/services/order"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net"
@@ -36,9 +37,24 @@ func main() {
 	}
 	defer conn.Close(ctx)
 
+	rdbBroker := redis.NewClient(&redis.Options{
+		Addr:     cfg.BrokerURL,
+		Password: "",
+		Protocol: 3,
+	})
+	if err := rdbBroker.Ping(ctx).Err(); err != nil {
+		log.WithError(err, "ping redis")
+		os.Exit(1)
+	}
+	defer rdbBroker.Close()
+
 	driverSearch := driver_search.NewDriverSearchService()
 	orderRepository := repository.NewOrderRepository(conn)
 	orderService := order.NewOrderService(orderRepository, driverSearch, log)
+
+	ctxWithCancel, cancelLocationUpdater := context.WithCancel(ctx)
+	locationUpdater := location_updater.NewLocationUpdater(rdbBroker, orderRepository, log)
+	go locationUpdater.Run(ctxWithCancel)
 
 	handler := handlers.NewHandler(orderService)
 
@@ -65,6 +81,7 @@ func main() {
 	}()
 
 	<-done
+	cancelLocationUpdater()
 	log.Info("Listen stopped")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
