@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"taxiservice/rider/internal/db/repository"
+	"taxiservice/rider/internal/services/driver_sender"
 )
 
 type OrderRepository interface {
@@ -12,4 +13,8 @@ type OrderRepository interface {
 
 type RidePriceEstimator interface {
 	Estimate(ctx context.Context, lat1 float32, lng1 float32, lat2 float32, lng2 float32) (int, error)
+}
+
+type DriverSenderService interface {
+	SendToDriver(ctx context.Context, order driver_sender.Order) error
 }

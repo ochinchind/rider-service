@@ -2,24 +2,31 @@ package handlers
 
 import (
 	"encoding/json"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"net/http"
-	"taxiservice/rider/internal/generated/schema"
+	"strconv"
+	rider "taxiservice/rider/internal/generated/schema"
+	otel2 "taxiservice/rider/internal/otel"
 	"taxiservice/rider/internal/services/order"
 )
 
 func (h *RideImpl) PostOrders(w http.ResponseWriter, r *http.Request, params rider.PostOrdersParams) {
-	if params.XUserId <= 0 {
+	if params.XUserID <= 0 {
 		writeAuthError(w)
 		return
 	}
-
 	orderData := rider.CreateOrder{}
 	if err := json.NewDecoder(r.Body).Decode(&orderData); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
 
-	createdOrder, err := h.orderService.Create(r.Context(), order.OrderCreate{
+	ctx, span := otel2.GetTracer().Start(r.Context(), "createOrder", trace.WithAttributes(attribute.String("userID", strconv.Itoa(params.XUserID))))
+	defer span.End()
+
+	createdOrder, err := h.orderService.Create(ctx, order.OrderCreate{
 		PickupLocation: order.Location{
 			Latitude:  orderData.PickupLocation.Latitude,
 			Longitude: orderData.PickupLocation.Longitude,
@@ -28,11 +35,13 @@ func (h *RideImpl) PostOrders(w http.ResponseWriter, r *http.Request, params rid
 			Latitude:  orderData.DropoffLocation.Latitude,
 			Longitude: orderData.DropoffLocation.Longitude,
 		},
-		UserID:         params.XUserId,
+		UserID:         params.XUserID,
 		IdempotencyKey: orderData.IdempotencyKey,
 	})
 
 	if err != nil {
+		span.SetStatus(codes.Error, "failed create order")
+		span.RecordError(err)
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -43,14 +52,13 @@ func (h *RideImpl) PostOrders(w http.ResponseWriter, r *http.Request, params rid
 			Latitude:  createdOrder.DropoffLocation.Latitude,
 			Longitude: createdOrder.DropoffLocation.Longitude,
 		},
+		Id: createdOrder.ID,
 		PickupLocation: rider.Location{
 			Latitude:  createdOrder.PickupLocation.Latitude,
 			Longitude: createdOrder.PickupLocation.Longitude,
 		},
-		Id:         createdOrder.ID,
 		TotalPrice: createdOrder.TotalPrice,
 	}
-
 	h.log.Info("Created order", "id", responseOrder.Id)
 	_ = json.NewEncoder(w).Encode(responseOrder)
 }

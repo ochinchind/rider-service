@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"taxiservice/rider/internal/generated/schema"
+	rider "taxiservice/rider/internal/generated/schema"
 	"taxiservice/rider/internal/logger"
 	"taxiservice/rider/internal/now_time"
 )
@@ -14,7 +14,7 @@ type RideImpl struct {
 	now          now_time.NowType
 }
 
-var _ rider.rider = (*RideImpl)(nil)
+var _ rider.ServerInterface = (*RideImpl)(nil)
 
 func New(log logger.Log, now now_time.NowType, orderService OrderService) *RideImpl {
 	return &RideImpl{

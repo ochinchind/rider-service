@@ -8,7 +8,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	middleware "github.com/oapi-codegen/nethttp-middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/riandyrn/otelchi"
 	"github.com/yarlson/chiprom"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"net/http"
@@ -22,6 +24,7 @@ import (
 	"taxiservice/rider/internal/handlers"
 	"taxiservice/rider/internal/logger"
 	"taxiservice/rider/internal/now_time"
+	"taxiservice/rider/internal/otel"
 	"taxiservice/rider/internal/services/driver_sender"
 	"taxiservice/rider/internal/services/order"
 	"taxiservice/rider/internal/services/price_estimator"
@@ -31,16 +34,27 @@ import (
 func main() {
 	log := logger.New()
 	cfg, err := config.FromEnv()
-
 	if err != nil {
 		log.WithError(err, "get cfg")
 		os.Exit(1)
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	serviceName := "rider-service"
+	serviceVersion := os.Getenv("SERVICE_VERSION")
+	otelShutdown, err := otel.SetupOTelSDK(ctx, serviceName, serviceVersion, cfg.Env == config.ProdEnv)
+	if err != nil {
+		return
+	}
+	defer func() {
+		err = errors.Join(err, otelShutdown(context.Background()))
+	}()
+
 	conn, err := pgxpool.New(ctx, cfg.DatabaseUrl)
 	if err != nil {
-		log.WithError(err, "connect to db")
+		log.WithError(err, "database connect")
 		os.Exit(1)
 	}
 	defer conn.Close()
@@ -49,15 +63,15 @@ func main() {
 		context.Background(),
 		cfg.DriverServiceLocation,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 	)
-
 	if err != nil {
 		log.WithError(err, "grpc connect")
 		os.Exit(1)
 	}
-
-	grpcClient := driver_order.NewOrderClient(grpcConn)
-	driverSenderService := driver_sender.NewDriverSenderService(grpcClient)
+	grcpClient := driver_order.NewOrderClient(grpcConn)
+	driverSenderService := driver_sender.NewDriverSenderService(grcpClient)
 
 	priceEstimator := price_estimator.NewPriceEstimatorService()
 	orderRepository := repository.NewOrderRepository(conn)
@@ -71,12 +85,12 @@ func main() {
 		log.WithError(err, "get swagger")
 		os.Exit(1)
 	}
-
 	r.Use(middleware.OapiRequestValidator(swagger))
 	r.Use(chimiddleware.Recoverer)
-	r.Use(chiprom.NewMiddleware("rider-service"))
+	r.Use(chiprom.NewMiddleware(serviceName))
+	r.Use(otelchi.Middleware(serviceName, otelchi.WithChiRoutes(r)))
 	if cfg.Env == config.LocalEnv {
-		r.Use(chimiddleware.Recoverer)
+		r.Use(chimiddleware.Logger)
 	}
 
 	baseRouter := chi.NewRouter()
@@ -90,22 +104,18 @@ func main() {
 		Addr:    cfg.ListenAddrAndPort(),
 	}
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
 	go func() {
 		log.Info("Listen", "addr", cfg.ListenAddrAndPort())
-		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.WithError(err, "Listen")
-			close(done)
+		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.WithError(err, "listen")
+			stop()
 		}
 	}()
 
-	<-done
+	<-ctx.Done()
 	log.Info("Listen stopped")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer func() {
 		cancel()
 	}()
@@ -114,6 +124,5 @@ func main() {
 		log.Error("Shutdown error", "error", err.Error())
 		os.Exit(1)
 	}
-
 	log.Info("Shutdown completed")
 }

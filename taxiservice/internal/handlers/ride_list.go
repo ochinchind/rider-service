@@ -3,16 +3,16 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"taxiservice/rider/internal/generated/schema"
+	rider "taxiservice/rider/internal/generated/schema"
 )
 
-func (h *RideImpl) GetOrders(w http.ResponseWriter, r *http.Request, params rider.rider) {
-	if params.XUserId <= 0 {
+func (h *RideImpl) GetOrders(w http.ResponseWriter, r *http.Request, params rider.GetOrdersParams) {
+	if params.XUserID <= 0 {
 		writeAuthError(w)
 		return
 	}
 
-	orders, err := h.orderService.List(r.Context(), params.XUserId)
+	orders, err := h.orderService.List(r.Context(), params.XUserID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -26,11 +26,11 @@ func (h *RideImpl) GetOrders(w http.ResponseWriter, r *http.Request, params ride
 				Latitude:  order.DropoffLocation.Latitude,
 				Longitude: order.DropoffLocation.Longitude,
 			},
+			Id: order.ID,
 			PickupLocation: rider.Location{
 				Latitude:  order.PickupLocation.Latitude,
 				Longitude: order.PickupLocation.Longitude,
 			},
-			Id:         order.ID,
 			TotalPrice: order.TotalPrice,
 		})
 	}

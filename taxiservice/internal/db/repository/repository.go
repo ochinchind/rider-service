@@ -21,9 +21,9 @@ type OrderRepositoryImpl struct {
 	conn *pgxpool.Pool
 }
 
-func (r OrderRepositoryImpl) GetByID(ctx context.Context, id string) (*OrderModel, error) {
+func (r *OrderRepositoryImpl) GetByID(ctx context.Context, id string) (*OrderModel, error) {
 	var order OrderModel
-	sql := `SELECT id, created_at, pickup_location_latitude, pickup_location_longitude, dropoff_location_latitude, dropoff_location_longitude, total_price, idempotency_key, user_id FROM orders WHERE id = $1`
+	sql := `SELECT id, created_at, completed_at, pickup_location, dropoff_location, total_price FROM orders WHERE id = $1`
 	err := r.conn.QueryRow(ctx, sql, id).Scan(&order)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (r OrderRepositoryImpl) GetByID(ctx context.Context, id string) (*OrderMode
 }
 
 func (r *OrderRepositoryImpl) List(ctx context.Context, userID int) ([]OrderModel, error) {
-	sql := `SELECT id, created_at, completed_at, pickup_location, dropoff_location, total_price FROM order WHERE user_id = $1`
+	sql := `SELECT id, created_at, completed_at, pickup_location, dropoff_location, total_price FROM orders WHERE user_id = $1`
 	rows, err := r.conn.Query(ctx, sql, userID)
 	if err != nil {
 		return nil, err
@@ -50,28 +50,26 @@ func (r *OrderRepositoryImpl) List(ctx context.Context, userID int) ([]OrderMode
 	var convertedOrders []OrderModel
 	for rows.Next() {
 		var order OrderModel
-		if err := rows.Scan(&order.ID, &order.CreatedAt, &order.CompletedAt, &order.PickupLocation, &order.DropoffLocation, &order.TotalPrice); err != nil {
+		err := rows.Scan(&order.ID, &order.CreatedAt, &order.CompletedAt, &order.PickupLocation, &order.DropoffLocation, &order.TotalPrice)
+		if err != nil {
 			return nil, err
 		}
 		convertedOrders = append(convertedOrders, order)
 	}
-
 	return convertedOrders, nil
 }
 
 func (r *OrderRepositoryImpl) CreateAndGetID(ctx context.Context, order *OrderModel) (string, error) {
-	query := `INSERT INTO orders
-		(id, created_at, completed_at, pickup_location, dropoff_location, total_price, user_id, idempotency_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (idempotency_key) DO NOTHING RETURNING id`
-
+	query := `INSERT INTO orders 
+    	(id, created_at, completed_at, pickup_location, dropoff_location, total_price, user_id, idempotency_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    	ON CONFLICT (idempotency_key) DO NOTHING RETURNING id`
 	var id string
-	err := r.conn.QueryRow(ctx, query, order.ID, order.CreatedAt, order.CompletedAt, order.PickupLocation, order.DropoffLocation).Scan()
+	err := r.conn.QueryRow(ctx, query, order.ID, order.CreatedAt, order.CompletedAt, order.PickupLocation, order.DropoffLocation, order.TotalPrice, order.UserID, order.IdempotencyKey).Scan(&id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			err = r.conn.QueryRow(ctx, "select id from orders WHERE idempotency_key = $1 AND user_id = $2", order.IdempotencyKey, order.UserID).Scan(&id)
 			return id, err
 		}
-
 		return "", err
 	}
 

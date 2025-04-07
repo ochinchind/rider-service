@@ -3,15 +3,15 @@ package driver_sender
 import (
 	"context"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	driver_order2 "taxiservice/rider/internal/generated/proto/driver.order"
+	driver_order "taxiservice/rider/internal/generated/proto/driver.order"
 	"time"
 )
 
 type DriverSenderService struct {
-	orderClient driver_order2.OrderClient
+	orderClient driver_order.OrderClient
 }
 
-func NewDriverSenderService(orderClient driver_order2.OrderClient) DriverSenderService {
+func NewDriverSenderService(orderClient driver_order.OrderClient) DriverSenderService {
 	return DriverSenderService{
 		orderClient: orderClient,
 	}
@@ -31,14 +31,14 @@ type Order struct {
 }
 
 func (d DriverSenderService) SendToDriver(ctx context.Context, order Order) error {
-	_, err := d.orderClient.StartOrder(ctx, &driver_order2.StartOrderRequest{
+	_, err := d.orderClient.StartOrder(ctx, &driver_order.StartOrderRequest{
 		Id:        order.ID,
 		CreatedAt: timestamppb.New(order.CreatedAt),
-		PointA: &driver_order2.Location{
+		PointA: &driver_order.Location{
 			Latitude:  order.PickupLocation.Latitude,
 			Longitude: order.PickupLocation.Longitude,
 		},
-		PointB: &driver_order2.Location{
+		PointB: &driver_order.Location{
 			Latitude:  order.DropoffLocation.Latitude,
 			Longitude: order.DropoffLocation.Longitude,
 		},

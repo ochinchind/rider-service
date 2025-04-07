@@ -14,6 +14,6 @@ type OrderModel struct {
 }
 
 type Location struct {
-	Latitude  float32 `pg:"latitude"`
-	Longitude float32 `pg:"longitude"`
+	Latitude  float32 `json:"latitude"`
+	Longitude float32 `json:"longitude"`
 }

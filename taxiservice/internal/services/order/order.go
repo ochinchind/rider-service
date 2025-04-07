@@ -5,21 +5,25 @@ import (
 	"github.com/google/uuid"
 	"taxiservice/rider/internal/db/repository"
 	"taxiservice/rider/internal/now_time"
+	otel2 "taxiservice/rider/internal/otel"
 	"taxiservice/rider/internal/services/driver_sender"
 )
 
 type OrderService struct {
 	repo                OrderRepository
-	priceEstimator      RidePriceEstimator
 	now                 now_time.NowType
-	driverSenderService driver_sender.DriverSenderService
+	priceEstimator      RidePriceEstimator
+	driverSenderService DriverSenderService
 }
 
-func NewOrderService(repo OrderRepository, priceEstimator RidePriceEstimator, now now_time.NowType, driverSenderService driver_sender.DriverSenderService) OrderService {
+func NewOrderService(repo OrderRepository, priceEstimator RidePriceEstimator, now now_time.NowType, driverSenderService DriverSenderService) OrderService {
 	return OrderService{repo: repo, priceEstimator: priceEstimator, now: now, driverSenderService: driverSenderService}
 }
 
 func (s OrderService) Create(ctx context.Context, orderCreate OrderCreate) (*OrderModel, error) {
+	ctx, span := otel2.GetTracer().Start(ctx, "serviceCreateOrder")
+	defer span.End()
+
 	price, err := s.priceEstimator.Estimate(
 		ctx,
 		orderCreate.PickupLocation.Latitude,
@@ -35,12 +39,10 @@ func (s OrderService) Create(ctx context.Context, orderCreate OrderCreate) (*Ord
 		Latitude:  orderCreate.PickupLocation.Latitude,
 		Longitude: orderCreate.PickupLocation.Longitude,
 	}
-
 	dropoffLocation := repository.Location{
 		Latitude:  orderCreate.DropoffLocation.Latitude,
 		Longitude: orderCreate.DropoffLocation.Longitude,
 	}
-
 	now := s.now()
 	order := repository.OrderModel{
 		CreatedAt:       now,
@@ -51,7 +53,6 @@ func (s OrderService) Create(ctx context.Context, orderCreate OrderCreate) (*Ord
 		IdempotencyKey:  orderCreate.IdempotencyKey,
 		UserID:          orderCreate.UserID,
 	}
-
 	id, err := s.repo.CreateAndGetID(ctx, &order)
 	if err != nil {
 		return nil, err
@@ -70,7 +71,6 @@ func (s OrderService) Create(ctx context.Context, orderCreate OrderCreate) (*Ord
 		},
 		UserID: int64(orderCreate.UserID),
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -79,14 +79,14 @@ func (s OrderService) Create(ctx context.Context, orderCreate OrderCreate) (*Ord
 		ID:        id,
 		CreatedAt: order.CreatedAt,
 		PickupLocation: Location{
-			Latitude:  order.PickupLocation.Latitude,
-			Longitude: order.PickupLocation.Longitude,
+			Latitude:  orderCreate.PickupLocation.Latitude,
+			Longitude: orderCreate.PickupLocation.Longitude,
 		},
 		DropoffLocation: Location{
-			Latitude:  order.DropoffLocation.Latitude,
-			Longitude: order.DropoffLocation.Longitude,
+			Latitude:  orderCreate.DropoffLocation.Latitude,
+			Longitude: orderCreate.DropoffLocation.Longitude,
 		},
-		TotalPrice: order.TotalPrice,
+		TotalPrice: price,
 	}, nil
 }
 

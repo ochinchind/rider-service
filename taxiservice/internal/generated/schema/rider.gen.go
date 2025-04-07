@@ -16,63 +16,54 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
 	"github.com/oapi-codegen/runtime"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // CreateOrder defines model for CreateOrder.
 type CreateOrder struct {
 	DropoffLocation Location `json:"dropoff_location"`
-
-	// IdempotencyKey A unique key to ensure the request is idempotent
-	IdempotencyKey string   `json:"idempotency_key"`
-	PickupLocation Location `json:"pickup_location"`
+	IdempotencyKey  string   `json:"idempotency_key"`
+	PickupLocation  Location `json:"pickup_location"`
 }
 
 // Error defines model for Error.
 type Error struct {
-	// Message A human-readable error message
 	Message *string `json:"message,omitempty"`
 }
 
 // Location defines model for Location.
 type Location struct {
-	// Latitude The latitude of the location
-	Latitude float32 `json:"latitude"`
-
-	// Longitude The longitude of the location
+	Latitude  float32 `json:"latitude"`
 	Longitude float32 `json:"longitude"`
 }
 
 // Order defines model for Order.
 type Order struct {
-	// CompletedAt The time the order was completed
-	CompletedAt *openapi_types.Date `json:"completed_at,omitempty"`
+	// CompletedAt The date and time the ride order was completed
+	CompletedAt *string `json:"completed_at,omitempty"`
 
-	// CreatedAt The time the order was created
-	CreatedAt       openapi_types.Date `json:"created_at"`
-	DropoffLocation Location           `json:"dropoff_location"`
+	// CreatedAt The date and time the ride order was created
+	CreatedAt       string   `json:"created_at"`
+	DropoffLocation Location `json:"dropoff_location"`
 
-	// Id The ID of the order
+	// Id The ID of the ride order
 	Id             string   `json:"id"`
 	PickupLocation Location `json:"pickup_location"`
 
-	// TotalPrice The total price of the order
+	// TotalPrice The total price of the ride order
 	TotalPrice int `json:"total_price"`
 }
 
-// XUserId defines model for X-User-Id.
-type XUserId = int
+// XUserID defines model for X-User-ID.
+type XUserID = int
 
 // GetOrdersParams defines parameters for GetOrders.
 type GetOrdersParams struct {
-	// XUserId The ID of the user making the request
-	XUserId XUserId `json:"X-User-Id"`
+	XUserID XUserID `json:"X-User-ID"`
 }
 
 // PostOrdersParams defines parameters for PostOrders.
 type PostOrdersParams struct {
-	// XUserId The ID of the user making the request
-	XUserId XUserId `json:"X-User-Id"`
+	XUserID XUserID `json:"X-User-ID"`
 }
 
 // PostOrdersJSONRequestBody defines body for PostOrders for application/json ContentType.
@@ -80,10 +71,10 @@ type PostOrdersJSONRequestBody = CreateOrder
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get all orders
+	// Get a list of ride orders
 	// (GET /orders)
 	GetOrders(w http.ResponseWriter, r *http.Request, params GetOrdersParams)
-	// Create a new order
+	// Create a ride order
 	// (POST /orders)
 	PostOrders(w http.ResponseWriter, r *http.Request, params PostOrdersParams)
 }
@@ -92,13 +83,13 @@ type ServerInterface interface {
 
 type Unimplemented struct{}
 
-// Get all orders
+// Get a list of ride orders
 // (GET /orders)
 func (_ Unimplemented) GetOrders(w http.ResponseWriter, r *http.Request, params GetOrdersParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Create a new order
+// Create a ride order
 // (POST /orders)
 func (_ Unimplemented) PostOrders(w http.ResponseWriter, r *http.Request, params PostOrdersParams) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -124,26 +115,26 @@ func (siw *ServerInterfaceWrapper) GetOrders(w http.ResponseWriter, r *http.Requ
 
 	headers := r.Header
 
-	// ------------- Required header parameter "X-User-Id" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+	// ------------- Required header parameter "X-User-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-ID")]; found {
+		var XUserID XUserID
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-ID", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-User-Id", runtime.ParamLocationHeader, valueList[0], &XUserId)
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-User-ID", runtime.ParamLocationHeader, valueList[0], &XUserID)
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-ID", Err: err})
 			return
 		}
 
-		params.XUserId = XUserId
+		params.XUserID = XUserID
 
 	} else {
-		err := fmt.Errorf("Header parameter X-User-Id is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Id", Err: err})
+		err := fmt.Errorf("Header parameter X-User-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-ID", Err: err})
 		return
 	}
 
@@ -169,26 +160,26 @@ func (siw *ServerInterfaceWrapper) PostOrders(w http.ResponseWriter, r *http.Req
 
 	headers := r.Header
 
-	// ------------- Required header parameter "X-User-Id" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-User-Id")]; found {
-		var XUserId XUserId
+	// ------------- Required header parameter "X-User-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-User-ID")]; found {
+		var XUserID XUserID
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-Id", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-User-ID", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-User-Id", runtime.ParamLocationHeader, valueList[0], &XUserId)
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-User-ID", runtime.ParamLocationHeader, valueList[0], &XUserID)
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-Id", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-User-ID", Err: err})
 			return
 		}
 
-		params.XUserId = XUserId
+		params.XUserID = XUserID
 
 	} else {
-		err := fmt.Errorf("Header parameter X-User-Id is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-Id", Err: err})
+		err := fmt.Errorf("Header parameter X-User-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-User-ID", Err: err})
 		return
 	}
 
@@ -329,19 +320,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/+RWTW/bOBD9K8TsHhXb2exedEu2RWEgQAK0BQoEgcFII5ux+JEhmVQw9N8LkrYs28pX",
-	"a/TSmwUO37x582boFRRaGq1QOQv5CgwnLtEhxa9vJ18t0sm0DB8l2oKEcUIryOHLAtn0A9MVcwtk3iIx",
-	"yZdCzeM34YNH6yADEYIXyEskyEBxiZD3cDMIoYKwhNyRxwxssUDJQ0IplJBeQn6agWtMuCiUwzkStG27",
-	"iYxE/yfkDq8oZAlVkDZITmA8LEkbXVWzWhc8sV/B34QV5PDXeFv+eI03vtzEtRmIEqXRDlXRzJbYHOpw",
-	"zrwSDx7ZEhvmNENlPWFfBCYs62CCJOtarCOh5iGJEcXSm5/g1/bluzkge4icHYpx2xHSd/dYuEDoI5Ee",
-	"EFKitXyOQyIsvOTqhJCX/K5GhgGAbeIPSm4Hcl72qt9NW3MnnC9x2ISb040Ve7Wucygv74JnMqi1mr8E",
-	"tTl+HWtP+Y5iP8eQss9YNHS5RofljLthbk7I5CodENgTt6y7BBlUmmS4CiV3OOSxIk7I+/DTlbeg/9qI",
-	"vbZdIqWjDk4GTjtezwyJ4hkzxAAWA57hsV1G+2P4tsnbacouo0PrhCRCVXpg+BQ7v56ySlMiGHcw/y4C",
-	"pHB1ALkyqELMZ4OFqESX/xHJJpDT0WQ0Cbpog4obATmcjSajs1AJd4to0nGEjz/nGG0ULByxwgsBn9Bd",
-	"pYhs5x25Ge7KNmS8fQ/a26ClNVrZNBn/TCZpQFTcnvkKuDH1uoTxvU1d3z4awqG0rxkhTeF2C3Ei3iSN",
-	"9xdbLawL/V/X3mbw7zsZvUQkLdqBxBe87B7RNoP/fkfOqXJIitfMIj0ipSUe3W29lJya1GPG67onh9F2",
-	"wAvX2h7LDFGEC102R1Og/2+hbdP47lju9GipuiT7YseDzYpl1hcFWlv5um7+eI+l9jDOFD6td27o0o8A",
-	"AAD//1iL/GirCgAA",
+	"H4sIAAAAAAAC/7xV3U7bTBB9ldV836VJQmlvfEdLVUVCAqFWqoRQtNjjZMH7w+yYNkJ+92p3QxwnJuVP",
+	"vYvjmTNnzpkZP0BhtbMGDXvIH8BJkhoZKT79PPjhkQ6mJ+FBGchhgbJEggyM1Aj5RkQGhHeNIiwhZ2ow",
+	"A18sUMuQqpVRutGQH2bASxcSlWGcI0Hbto+RseQXQsl4RqFK4EPWIbHC+LIk62xVzWpbSFbWhP/+J6wg",
+	"h//GXSPjFd749DGuzUCVqJ1lNMVydovLkLqi4pmUmYcYp4rbxr0Cvt3s/nKn1i5yttvL1Vobe32DBQdC",
+	"X4nsgA4avZdzHOihHQA53Winj1NLVtyUm0Cm0dfBlgxqa+ZPvd3qd42zmTXUzxO+Bm1rZCxnkqPP6AtS",
+	"LpGG7wsUpWQU0pSClUbBCxSkShQ24Ilf0os1BGRQWdIBCEJWSIBs1+siDtpbKiaA59Z72+wOc5yeCFtt",
+	"cRuq/eq5zoAty3rmSBU4zCEGiBiwj0y379ur8rzt6BnWp7U7aKGIMpXdZXxsxPH5VFSWEkFl5oLlb+UD",
+	"puI6oFwE+nFSQyxkcI/kU/rhaDKaBFmsQyOdghyORpPRUehB8iIO8zgCx59zjMMVRj12MS0hh2/IZyki",
+	"653by2FTupBxd2zbq6Cid9b4tEEfJpO0SIbRxKLSuVol8cY3PpneXWTFqP3f5iBta3dSJJFcJnX7qp4q",
+	"z8H8zngfjfaN1pKWqWkhRT0Ul4GzfkCnc+vfS6i7Bj1/tuXyRRrtk2bzM9W2aah7dhy+W6l1kW3VL7p7",
+	"tNoN4ZuiQO+rpq6XQdmPLxyLfTzSt2g/j5XUAlNsBp/+BYGpYSQja+GR7pEeq/cGMBkm5OZxCsb9CQAA",
+	"//8EOn3rAQkAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
