@@ -10,7 +10,7 @@ import (
 type DriverSearchService struct {
 }
 
-var ErrDriverNotFound = errors.New("driver not found")
+var ErrDriverNotFound = errors.New("can not find driver")
 
 func NewDriverSearchService() DriverSearchService {
 	return DriverSearchService{}
