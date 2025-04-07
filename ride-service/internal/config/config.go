@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+
 	"github.com/spf13/viper"
 )
 
@@ -19,7 +20,6 @@ func (c Config) ListenAddrAndPort() string {
 
 func FromEnv() (*Config, error) {
 	v := viper.New()
-
 	v.SetDefault("LISTEN_ADDR", "127.0.0.1")
 	v.SetDefault("LISTEN_PORT", 8002)
 	v.SetDefault("ENV", "local")
@@ -30,7 +30,6 @@ func FromEnv() (*Config, error) {
 
 	cfg := Config{}
 	err := v.Unmarshal(&cfg)
-
 	if err != nil {
 		return nil, err
 	}

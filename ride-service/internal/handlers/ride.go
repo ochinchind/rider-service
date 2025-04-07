@@ -54,6 +54,5 @@ func (h Handler) GetTrack(ctx context.Context, request *ride_order.GetTrackReque
 			Longitude: t.Longitude,
 		}
 	}
-
 	return &ride_order.GetTrackResponse{Track: trackItems}, nil
 }

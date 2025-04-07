@@ -3,7 +3,11 @@ package ride
 import (
 	"context"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"ride-service/example/internal/db/repository"
+	"ride-service/example/internal/otel"
 	"time"
 )
 
@@ -13,20 +17,21 @@ type RideService struct {
 }
 
 func NewRideService(rideRepository RideRepository, conn *redis.Client) RideService {
-	return RideService{
-		rideRepository: rideRepository,
-		conn:           conn,
-	}
+	return RideService{rideRepository: rideRepository, conn: conn}
 }
 
-func (s *RideService) TrackOrder(ctx context.Context, id string, t time.Time, latitude float32, longitude float32) error {
+func (s RideService) TrackOrder(ctx context.Context, id string, t time.Time, latitude float32, longitude float32) error {
+	ctx, span := otel.GetTracer().Start(ctx, "trackOrder", trace.WithAttributes(attribute.String("orderID", id)))
+	defer span.End()
+
 	err := s.rideRepository.TrackPoint(ctx, id, repository.Location{
 		CreatedAt: t,
 		Latitude:  latitude,
 		Longitude: longitude,
 	})
-
 	if err != nil {
+		span.SetStatus(codes.Error, "failed track order")
+		span.RecordError(err)
 		return err
 	}
 
@@ -35,27 +40,30 @@ func (s *RideService) TrackOrder(ctx context.Context, id string, t time.Time, la
 		MaxLen: 1000,
 		Approx: true,
 		Values: map[string]interface{}{
-			"lat":  latitude,
-			"lon":  longitude,
-			"id":   id,
-			"time": t.Unix(),
+			"lat":     latitude,
+			"lng":     longitude,
+			"id":      id,
+			"time":    t.Unix(),
+			"traceID": span.SpanContext().TraceID().String(),
+			"spanID":  span.SpanContext().SpanID().String(),
 		},
 	}).Err()
 }
 
-func (s *RideService) GetTrack(ctx context.Context, id string) ([]Location, error) {
+func (s RideService) GetTrack(ctx context.Context, id string) ([]Location, error) {
 	track, err := s.rideRepository.GetTrack(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	locations := make([]Location, len(track))
+	result := make([]Location, len(track))
 	for i, t := range track {
-		locations[i] = Location{
-			CreatedAt: t.CreatedAt,
+		result[i] = Location{
+			Time:      t.CreatedAt,
 			Latitude:  t.Latitude,
 			Longitude: t.Longitude,
 		}
 	}
-	return locations, nil
+
+	return result, nil
 }

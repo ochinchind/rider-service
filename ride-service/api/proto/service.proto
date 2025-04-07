@@ -5,8 +5,8 @@ option go_package="ride.order";
 import "google/protobuf/timestamp.proto";
 
 service Ride {
-  rpc TrackOrder (stream TrackOrderRequest) returns (TrackOrderResponse) {}
-  rpc GetTrack (GetTrackRequest) returns (GetTrackResponse) {}
+  rpc TrackOrder(stream TrackOrderRequest) returns (TrackOrderResponse) {}
+  rpc GetTrack(GetTrackRequest) returns (GetTrackResponse) {}
 }
 
 message TrackOrderRequest {

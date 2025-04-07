@@ -7,11 +7,11 @@ import (
 
 type Location struct {
 	CreatedAt time.Time `json:"time" redis:"time"`
-	Latitude  float64   `json:"latitude" redis:"latitude"`
-	Longitude float64   `json:"longitude" redis:"longitude"`
+	Latitude  float32   `json:"latitude" redis:"latitude"`
+	Longitude float32   `json:"longitude" redis:"longitude"`
 }
 
-func (l *Location) MarshalBinary() ([]byte, error) {
+func (l *Location) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(l)
 }
 
